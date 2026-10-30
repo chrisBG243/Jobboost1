@@ -29,8 +29,8 @@ h2{margin:6px 0 12px;font-size:20px}
 <script>
 // 1) Collez ici l'URL et la clé "anon public" de votre projet Supabase (Project Settings > API).
 // La clé anon est faite pour être publique : la sécurité vient des règles RLS de schema.sql.
-const SB_URLeyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImljZ2VrZGN3b3VoZ2F4ZWdxZ3BrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNTE1NzIsImV4cCI6MjEwODkyNzU3Mn0.DFgJOjHTkanu41O5R5Fw7dO7D0dkPOWZL3GSWLykeDc ',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImljZ2VrZGN3b3VoZ2F4ZWdxZ3BrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNTE1NzIsImV4cCI6MjEwODkyNzU3Mn0.DFgJOjHTkanu41O5R5Fw7dO7D0dkPOWZL3GSWLykeDc';
-const sb=supabase.createClient(SB_URL,SB_KEY);
+const SB_URL='https://icgekdcwouhgaxegqgpk.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImljZ2VrZGN3b3VoZ2F4ZWdxZ3BrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNTE1NzIsImV4cCI6MjEwODkyNzU3Mn0.DFgJOjHTkanu41O5R5Fw7dO7D0dkPOWZL3GSWLykeDc';
+ const sb=supabase.createClient(SB_URL,SB_KEY);
 const $=s=>document.querySelector(s);
 const fc=n=>Math.round(n).toLocaleString('fr-FR')+' FC';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
