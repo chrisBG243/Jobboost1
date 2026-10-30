@@ -5,7 +5,7 @@ create table service_costs(sid int primary key references services on delete cas
 create table orders(id serial primary key,uid uuid references profiles(id),sid int,sname text,link text,qty int,price int,cost int,st int default 0,at timestamptz default now());
 create table deposits(id serial primary key,uid uuid references profiles(id),amount int check(amount>=500),method text,ref text,st int default 0,at timestamptz default now());
 create table pay_methods(id serial primary key,name text,num text default '');
-create table settings(id int primary key default 1 check(id=1),name text default 'JobBoost',color text default '#10b981',wa text default '');
+create table settings(id int primary key default 1 check(id=1),name text default 'FastBoost',color text default '#10b981',wa text default '');
 
 create function is_admin() returns boolean language sql security definer stable set search_path=public as $$select exists(select 1 from profiles where id=auth.uid() and role='admin')$$;
 
@@ -120,3 +120,68 @@ create or replace function adjust_balance(p_uid uuid,p_amt int) returns void lan
 begin if not is_admin() then raise exception 'Interdit';end if;
 update profiles set bal=bal+p_amt where id=p_uid;
 insert into transactions(uid,amount,label) values(p_uid,p_amt,'Ajustement par l''administrateur');end$$;
+
+-- AJOUT v4 : page publique, populaires, garantie, parrainage, codes promo, USD (exécutez ce bloc après le v3)
+alter table settings add column if not exists email text default '',add column if not exists wa_channel text default '',add column if not exists usd_rate int default 2800,add column if not exists ref_pct int default 5;
+alter table services add column if not exists best boolean default false;
+alter table profiles add column if not exists code text unique,add column if not exists ref_by uuid references profiles(id);
+update profiles set code=upper(substr(md5(id::text),1,6)) where code is null;
+create table refills(id serial primary key,oid int references orders(id) on delete cascade,uid uuid references profiles(id),st int default 0,at timestamptz default now());
+create table promos(code text primary key,amount int not null,max_uses int default 100,used int default 0,active boolean default true);
+create table promo_uses(uid uuid references profiles(id) on delete cascade,code text,primary key(uid,code));
+alter table refills enable row level security;alter table promos enable row level security;alter table promo_uses enable row level security;
+create policy r on refills for select using(uid=auth.uid() or is_admin());
+create policy w on refills for update using(is_admin());
+create policy a on promos for all using(is_admin()) with check(is_admin());
+
+create or replace function new_user() returns trigger language plpgsql security definer set search_path=public as $$
+declare rb uuid;
+begin
+select id into rb from profiles where code=upper(trim(new.raw_user_meta_data->>'ref'));
+insert into profiles(id,name,phone,code,ref_by) values(new.id,new.raw_user_meta_data->>'name',new.raw_user_meta_data->>'phone',upper(substr(md5(new.id::text),1,6)),rb);
+return new;end$$;
+
+create function request_refill(p_oid int) returns void language plpgsql security definer set search_path=public as $$
+declare o orders;
+begin select * into o from orders where id=p_oid and uid=auth.uid();
+if not found or o.st<>3 then raise exception 'Commande non éligible';end if;
+if o.at<now()-interval '30 days' then raise exception 'Garantie de 30 jours expirée';end if;
+if exists(select 1 from refills where oid=p_oid and st=0) then raise exception 'Demande déjà envoyée';end if;
+insert into refills(oid,uid) values(p_oid,auth.uid());end$$;
+
+create function redeem_promo(p_code text) returns int language plpgsql security definer set search_path=public as $$
+declare p promos;
+begin select * into p from promos where code=upper(trim(p_code)) and active and used<max_uses for update;
+if not found then raise exception 'Code invalide ou épuisé';end if;
+begin insert into promo_uses(uid,code) values(auth.uid(),p.code);
+exception when unique_violation then raise exception 'Code déjà utilisé';end;
+update promos set used=used+1 where code=p.code;
+update profiles set bal=bal+p.amount where id=auth.uid();
+insert into transactions(uid,amount,label) values(auth.uid(),p.amount,'Code promo '||p.code);
+return p.amount;end$$;
+
+create or replace function review_deposit(p_id int,p_st int) returns void language plpgsql security definer set search_path=public as $$
+declare d deposits;rb uuid;pc int;b int;
+begin
+if not is_admin() then raise exception 'Interdit';end if;
+select * into d from deposits where id=p_id and st=0 for update;
+if not found then return;end if;
+if p_st=1 then
+ update profiles set bal=bal+d.amount where id=d.uid;
+ insert into transactions(uid,amount,label) values(d.uid,d.amount,'Recharge '||d.method);
+ select ref_by into rb from profiles where id=d.uid;
+ select ref_pct into pc from settings where id=1;
+ if rb is not null and coalesce(pc,0)>0 and not exists(select 1 from deposits where uid=d.uid and st=1) then
+  b:=round(d.amount*pc/100.0);
+  update profiles set bal=bal+b where id=rb;
+  insert into transactions(uid,amount,label) values(rb,b,'Bonus parrainage');
+ end if;
+end if;
+update deposits set st=p_st where id=p_id;end$$;
+
+-- Nouveaux services d'exemple (ajustez les prix dans Admin > Tarifs)
+insert into services(plat,em,name,price,qmin,qmax) values('Spotify','🎧','Écoutes',1500,100,1000000),('Spotify','👥','Abonnés artiste',2500,50,100000),('Telegram','👥','Membres canal',1200,50,100000),('X','👥','Abonnés',2800,50,50000),('X','❤️','Likes',900,10,50000),('TikTok','💬','Commentaires',9000,5,5000),('Instagram','↗️','Partages',700,10,100000),('Facebook','↗️','Partages',650,10,100000);
+update services set best=true where (plat,name) in (('TikTok','Likes'),('TikTok','Vues vidéo'),('Facebook','Réactions J''aime'));
+
+-- AJOUT v5 : nouveau nom du site
+update settings set name='FastBoost' where id=1;
