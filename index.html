@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>JobBoost</title><meta name="theme-color" content="#10b981"><meta name="description" content="Likes, abonnés et vues pour vos réseaux sociaux. Paiement Mobile Money."><meta name="apple-mobile-web-app-capable" content="yes"><link rel="manifest" href="manifest.json"><link rel="icon" href="icon.svg"><link rel="apple-touch-icon" href="icon.svg">
+<style>
+:root{--c:#10b981}*{box-sizing:border-box;margin:0;padding:0}
+body{font:15px system-ui,sans-serif;background:#f1f5f9;color:#0f172a;padding-bottom:76px}
+main{padding:14px;max-width:640px;margin:auto}
+header{position:sticky;top:0;z-index:5;background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;font-weight:800;color:var(--c);font-size:20px}
+input,select{width:100%;padding:12px;margin-top:6px;border:1.5px solid #e2e8f0;border-radius:12px;font:inherit}
+label{display:block;margin-top:12px;font-size:13px;font-weight:600;color:#64748b}
+h2{margin:6px 0 12px;font-size:20px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:14px;margin-bottom:12px}
+.btn{width:100%;margin-top:12px;padding:13px;border:0;border-radius:12px;background:var(--c);color:#fff;font:inherit;font-weight:700;cursor:pointer}
+.btn.s{width:auto;margin:0;padding:8px 12px;font-size:13px}.btn.g{background:#e2e8f0;color:#0f172a}.btn.r{background:#ef4444}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}.mu{color:#64748b;font-size:13px;margin-top:4px}
+.mini{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.hero{background:linear-gradient(135deg,var(--c),#059669);color:#fff;border-radius:18px;padding:18px;margin-bottom:14px}
+.st{padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700;background:#fef3c7;color:#92400e}.s2{background:#dbeafe;color:#1e40af}.s3{background:#d1fae5;color:#065f46}.s4{background:#fee2e2;color:#991b1b}
+.link{word-break:break-all;background:#f8fafc;border:1px dashed #e2e8f0;padding:8px;border-radius:10px;font-size:13px;margin:8px 0}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px}.tabs button{flex:0 0 auto;padding:9px 14px;border-radius:20px;border:1px solid #e2e8f0;background:#fff;font:inherit;font-weight:600;color:#64748b}.tabs .on{background:var(--c);color:#fff}
+.nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e2e8f0;display:flex;padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px))}
+.nav button{flex:1;border:0;background:none;font:inherit;font-size:11px;font-weight:600;color:#64748b}.nav .on{color:var(--c)}.nav span{display:block;font-size:20px}
+.pay{display:flex;gap:10px;justify-content:space-between;width:100%;padding:12px;margin-top:8px;border:1.5px solid #e2e8f0;border-radius:14px;background:#fff;font:inherit;text-align:left}.pay.on{border-color:var(--c);background:#ecfdf5}
+.modal{position:fixed;inset:0;background:#0008;z-index:50;display:flex;align-items:flex-end}.sheet{background:#fff;width:100%;max-width:640px;margin:auto;border-radius:22px 22px 0 0;padding:18px 16px;max-height:90vh;overflow:auto}
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 16px;border-radius:12px;z-index:99;max-width:90%}
+.empty{text-align:center;color:#64748b;padding:30px}
+</style></head><body>
+<div id="app"></div><div id="modal"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+// 1) Collez ici l'URL et la clé "anon public" de votre projet Supabase (Project Settings > API).
+// La clé anon est faite pour être publique : la sécurité vient des règles RLS de schema.sql.
+const SB_URL='https://jobboost.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImljZ2VrZGN3b3VoZ2F4ZWdxZ3BrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNTE1NzIsImV4cCI6MjEwODkyNzU3Mn0.DFgJOjHTkanu41O5R5Fw7dO7D0dkPOWZL3GSWLykeDc';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+const $=s=>document.querySelector(s);
+const fc=n=>Math.round(n).toLocaleString('fr-FR')+' FC';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ST=['En attente','En attente','En cours','Terminé','Annulé'],DS=['En attente','Validée','Refusée'],DC=[0,3,4];
+let me,cfg={},S=[],P=[],tab='home',atab='orders',auth='login',pay=null,q='',plat='all';
+const toast=m=>{const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.append(t);setTimeout(()=>t.remove(),2500)};
+const modal=h=>$('#modal').innerHTML=h?`<div class="modal" onclick="if(event.target===this)modal()"><div class="sheet">${h}</div></div>`:'';
+const fake=p=>p.replace(/\D/g,'')+'@jobboost.app';
+
+async function loadAll(){
+ const[a,b,c]=await Promise.all([sb.from('settings').select('*').eq('id',1).single(),sb.from('services').select('*').order('id'),sb.from('pay_methods').select('*').order('id')]);
+ cfg=a.data||{};S=b.data||[];P=c.data||[];
+ document.title=cfg.name||'JobBoost';document.documentElement.style.setProperty('--c',cfg.color||'#10b981');
+}
+async function refresh(){const{data:{session}}=await sb.auth.getSession();me=session?(await sb.from('profiles').select('*').eq('id',session.user.id).single()).data:null}
+async function boot(){await refresh();await loadAll();render()}
+
+async function signup(){
+ const n=$('#nm').value.trim(),p=$('#ph').value.replace(/\s/g,''),w=$('#pw').value;
+ if(!n||p.length<8||w.length<6)return toast('Remplissez tout (mot de passe : 6 caractères min)');
+ const{error}=await sb.auth.signUp({email:fake(p),password:w,options:{data:{name:n,phone:p}}});
+ error?toast(error.message):boot();
+}
+async function login(){
+ const{error}=await sb.auth.signInWithPassword({email:fake($('#ph').value),password:$('#pw').value});
+ error?toast('Numéro ou mot de passe incorrect'):boot();
+}
+async function logout(){await sb.auth.signOut();me=null;auth='login';render()}
+
+const authV=()=>`<main><div class="hero" style="text-align:center;margin-top:30px"><h2>⚡ ${esc(cfg.name||'JobBoost')}</h2><p>Likes, abonnés et vues pour vos réseaux. Payez par Mobile Money.</p></div>
+<div class="tabs"><button class="${auth=='login'?'on':''}" onclick="auth='login';render()">Connexion</button><button class="${auth=='signup'?'on':''}" onclick="auth='signup';render()">Créer un compte</button></div>
+<div class="card">${auth=='signup'?'<label>Votre nom</label><input id="nm">':''}<label>Téléphone</label><input id="ph" type="tel" placeholder="0812345678"><label>Mot de passe</label><input id="pw" type="password">
+<button class="btn" onclick="${auth=='signup'?'signup()':'login()'}">${auth=='signup'?'Créer mon compte':'Me connecter'}</button></div></main>`;
+
+const BR={Facebook:['#1877f2','f'],TikTok:['#111','♪'],Instagram:['#e1306c','◎'],YouTube:['#f00','▶'],Telegram:['#229ed9','➤'],Snapchat:['#fffc00','👻'],WhatsApp:['#25d366','✆'],Spotify:['#1db954','♫'],X:['#000','𝕏']};
+const ico=(p,z=44)=>{const b=BR[p]||['#334155',(p||'?')[0]];return `<span style="flex:0 0 auto;width:${z}px;height:${z}px;border-radius:12px;background:${b[0]};color:${b[0]=='#fffc00'?'#000':'#fff'};display:grid;place-items:center;font-weight:800;font-size:${z/2}px">${b[1]}</span>`};
+const rest=o=>o.st==3?0:o.st==4?o.qty:(o.rest??o.qty);
+const O={};
+const cp=async t=>{try{await navigator.clipboard.writeText(t);toast('Copié')}catch(e){prompt('Copiez :',t)}};
+const setRest=(id,cur)=>{const v=prompt('Quantité restante ?',cur);if(v!==null)rpc('set_rest',{p_id:id,p_rest:Math.max(0,parseInt(v)||0)},'Restant mis à jour')};
+const exp=async t=>{const{data}=await sb.from(t).select('*');if(!data?.length)return toast('Rien à exporter');const k=Object.keys(data[0]);const csv=[k.join(','),...data.map(r=>k.map(c=>JSON.stringify(r[c]??'')).join(','))].join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`jobboost-${t}-${new Date().toISOString().slice(0,10)}.csv`;a.click()};
+const stats=async()=>{const{data:o}=await sb.from('orders').select('price,cost,st');const{count:pd}=await sb.from('deposits').select('*',{count:'exact',head:true}).eq('st',0);let rv=0,pr=0,pe=0;(o||[]).forEach(x=>{if(x.st!=4){rv+=x.price;pr+=x.price-x.cost}if(!x.st)pe++});const c=(v,l,col)=>`<div class="card" style="margin:0"><b style="font-size:18px;color:${col||'inherit'}">${v}</b><div class="mu">${l}</div></div>`;return`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">${c(fc(rv),'Ventes')}${c(fc(pr),'Bénéfice','var(--c)')}${c(pe,'Commandes en attente')}${c(pd||0,'Recharges en attente')}</div>`};
+/* ===== CLIENT =====
+const hdr=()=>`<header>⚡ ${esc(cfg.name)}<span onclick="tab='fund';render()" style="background:var(--c);color:#fff;padding:8px 12px;border-radius:20px;font-size:14px">💼 ${fc(me.bal)}</span></header>`;
+const nav=()=>'<div class="nav">'+[['home','🏠','Accueil'],['orders','📦','Commandes'],['fund','💰','Recharger'],['acc','👤','Compte']].map(t=>`<button class="${tab==t[0]?'on':''}" onclick="tab='${t[0]}';render()"><span>${t[1]}</span>${t[2]}</button>`).join('')+'</div>';
+const list=()=>S.filter(s=>s.active&&(plat=='all'||s.plat==plat)&&(s.plat+' '+s.name).toLowerCase().includes(q.toLowerCase())).map(s=>`<div class="card"><div style="display:flex;gap:12px;align-items:center">${ico(s.plat,52)}<div><b>${esc(s.em)} ${esc(s.plat)} · ${esc(s.name)}</b><div class="mu">Min ${s.qmin} · Max ${s.qmax.toLocaleString('fr-FR')}</div></div></div><div class="row" style="margin-top:8px"><span class="mu">Pour 1 000</span><b>${fc(s.price)}</b></div><button class="btn" onclick="order(${s.id})">Acheter →</button></div>`).join('')||'<div class="empty">Aucun service</div>';
+const homeV=()=>`<div class="hero"><h2>Boostez vos réseaux</h2><p>Choisissez un service. Livraison rapide.</p></div><input placeholder="🔍 Rechercher" value="${esc(q)}" oninput="q=this.value;$('#list').innerHTML=list()" style="margin:0 0 12px"><div class="tabs" style="margin-top:12px">${['all',...new Set(S.filter(s=>s.active).map(s=>s.plat))].map(p=>`<button class="${plat==p?'on':''}" onclick="plat='${esc(p)}';render()">${p=='all'?'✨ Tous':esc(p)}</button>`).join('')}</div><div id="list">${list()}</div>`;
+function order(id){const s=S.find(x=>x.id==id);modal(`<h2>${esc(s.plat)} · ${esc(s.name)}</h2><label>Lien du profil ou de la publication</label><input id="lk" placeholder="https://..."><label>Quantité (${s.qmin} à ${s.qmax})</label><input id="qt" type="number" inputmode="numeric" oninput="$('#tt').textContent=fc(${s.price}*this.value/1000)"><div class="card row" style="margin-top:14px"><span class="mu">Total</span><b id="tt">0 FC</b></div><button class="btn" onclick="place(${id})">Commander</button>`)}
+async function place(id){const lk=$('#lk').value.trim(),qt=+$('#qt').value,s=S.find(x=>x.id==id);
+ if(!/^https?:\/\/|^@/i.test(lk))return toast('Collez un lien valide (https://... ou @pseudo)');
+ const{data,error}=await sb.rpc('place_order',{p_sid:id,p_link:lk,p_qty:qt});if(error)return toast(error.message);
+ await refresh();tab='orders';render();
+ const m=encodeURIComponent(`Nouvelle commande ${cfg.name} n°${data}\nClient : ${me.name} (ID ${me.num} · ${me.phone})\nService : ${s.plat} · ${s.name}\nLien : ${lk}\nQuantité : ${qt}`);
+ modal(`<h2>✅ Commande n°${data} envoyée</h2><p class="mu">Envoyez-la aussi sur WhatsApp pour un traitement plus rapide.</p>${cfg.wa?`<button class="btn" style="background:#25d366" onclick="window.open('https://wa.me/${cfg.wa}?text=${m}')">Envoyer sur WhatsApp</button>`:''}<button class="btn g" onclick="modal()">Fermer</button>`)}
+const ordersV=async()=>{const{data}=await sb.from('orders').select('*').eq('uid',me.id).order('id',{ascending:false});
+ return '<h2>Mes commandes</h2>'+((data||[]).map(o=>`<div class="card"><div class="row"><span style="display:flex;gap:10px;align-items:center">${ico(o.sname.split(' · ')[0],36)}<b>${esc(o.sname)}</b></span><span class="st s${o.st}">${ST[o.st]}</span></div><div class="mu">n°${o.id} · Qté ${o.qty} · Restant ${rest(o)} · ${fc(o.price)} · ${new Date(o.at).toLocaleDateString('fr-FR')}</div></div>`).join('')||'<div class="empty">Aucune commande</div>')};
+const fundV=async()=>{const{data:d}=await sb.from('deposits').select('*').eq('uid',me.id).order('id',{ascending:false});const p=P.find(x=>x.id==pay);
+ return `<h2>Recharger mon compte</h2><div class="card"><b>1. Moyen de paiement</b>${P.map(m=>`<button class="pay ${pay==m.id?'on':''}" onclick="pay=${m.id};render()"><b>${esc(m.name)}</b><span class="mu">${esc(m.num||'Bientôt')}</span></button>`).join('')}</div>`
+ +(p&&p.num?`<div class="card"><b>2. Envoyez l'argent au ${esc(p.num)}</b><label>Montant envoyé (FC)</label><input id="am" type="number"><label>Référence / numéro émetteur</label><input id="rf"><button class="btn" onclick="dep()">J'ai payé</button></div>`:'')
+ +(d&&d.length?'<h2>Mes recharges</h2>':'')+(d||[]).map(x=>`<div class="card row"><div><b>${fc(x.amount)}</b><div class="mu">${esc(x.method)}</div></div><span class="st s${DC[x.st]}">${DS[x.st]}</span></div>`).join('')};
+async function dep(){const a=+$('#am').value,p=P.find(x=>x.id==pay);if(a<500)return toast('Minimum 500 FC');
+ const{error}=await sb.from('deposits').insert({uid:me.id,amount:a,method:p.name,ref:$('#rf').value.trim()});if(error)return toast(error.message);
+ toast('Demande envoyée. Envoyez la capture sur WhatsApp.');if(cfg.wa)window.open('https://wa.me/'+cfg.wa+'?text='+encodeURIComponent(`Recharge ${a} FC via ${p.name} - ${me.name} (${me.phone})`));render()}
+const accV=async()=>{const{data:tx}=await sb.from('transactions').select('*').eq('uid',me.id).order('id',{ascending:false}).limit(30);const hist=(tx||[]).map(x=>`<div class="card row"><div><b>${esc(x.label)}</b><div class="mu">${new Date(x.at).toLocaleString('fr-FR')}</div></div><b style="color:${x.amount>0?'#059669':'#dc2626'}">${x.amount>0?'+':''}${fc(x.amount)}</b></div>`).join('')||'<div class="empty">Aucun mouvement</div>';return`<div class="card"><h2>${esc(me.name)}</h2><div class="mu">ID ${me.num} · ${esc(me.phone)}</div><div class="mu">Solde : <b>${fc(me.bal)}</b></div></div>${cfg.wa?`<button class="btn" onclick="window.open('https://wa.me/${cfg.wa}')">💬 Support WhatsApp</button>`:''}<button class="btn g" onclick="logout()">Me déconnecter</button><h2 style="margin-top:18px">Historique du solde</h2>${hist}`};
+
+/* ===== ADMIN (accessible aux comptes role=admin uniquement ; sécurité réelle via RLS) ===== */
+const rpc=async(f,a,m)=>{const{error}=await sb.rpc(f,a);toast(error?error.message:m);render()};
+const setSt=(i,s)=>rpc('set_order_status',{p_id:i,p_st:s},'Statut mis à jour');
+const depSt=(i,s)=>rpc('review_deposit',{p_id:i,p_st:s},s==1?'Fonds ajoutés':'Refusée');
+const adj=id=>{const v=parseInt(prompt('Montant à ajouter (négatif pour retirer) ?'));if(v)rpc('adjust_balance',{p_uid:id,p_amt:v},'Solde mis à jour')};
+const upd=async(t,id,o)=>{const{error}=await sb.from(t).update(o).eq('id',id);if(error)toast(error.message);await loadAll();render()};
+const togS=id=>upd('services',id,{active:!S.find(s=>s.id==id).active});
+const svcForm=(s,c)=>{const i=s?s.id:'n',v=(k,d)=>esc(s?s[k]:d);return`<label>Réseau</label><input id="sf${i}-plat" list="nets" value="${v('plat','')}" placeholder="Ex : TikTok"><label>Nom du service</label><input id="sf${i}-name" value="${v('name','')}" placeholder="Ex : Likes Premium"><label>Emoji</label><input id="sf${i}-em" value="${v('em','⭐')}"><div class="mini"><div style="flex:1"><label>Coût /1000 (FC)</label><input id="sf${i}-cost" type="number" value="${c||0}"></div><div style="flex:1"><label>Prix client /1000 (FC)</label><input id="sf${i}-price" type="number" value="${s?s.price:''}"></div></div><div class="mini"><div style="flex:1"><label>Minimum</label><input id="sf${i}-qmin" type="number" value="${s?s.qmin:10}"></div><div style="flex:1"><label>Maximum</label><input id="sf${i}-qmax" type="number" value="${s?s.qmax:100000}"></div></div>`};
+const svcSave=async i=>{const g=k=>$('#sf'+i+'-'+k).value.trim();const o={plat:g('plat'),name:g('name'),em:g('em')||'⭐',price:+g('price'),qmin:+g('qmin')||1,qmax:+g('qmax')||100000};
+ if(!o.plat||!o.name||!(o.price>0))return toast('Réseau, nom et prix requis');
+ if(o.qmin>o.qmax)return toast('Le minimum dépasse le maximum');
+ let id=i,r;
+ if(i=='n'){r=await sb.from('services').insert(o).select('id').single();id=r.data?.id}else r=await sb.from('services').update(o).eq('id',i);
+ if(r.error)return toast(r.error.message);
+ await sb.from('service_costs').upsert({sid:id,cost:+g('cost')||0});
+ await loadAll();toast(i=='n'?'Service ajouté':'Service enregistré');render()};
+const applyM=async()=>{const m=parseFloat($('#mg').value);if(isNaN(m))return toast('Entrez un pourcentage');if(!confirm('Recalculer TOUS les prix client avec cette marge ?'))return;const cs=(await sb.from('service_costs').select('*')).data||[];await Promise.all(cs.filter(c=>c.cost>0).map(c=>sb.from('services').update({price:Math.round(c.cost*(1+m/100))}).eq('id',c.sid)));await loadAll();toast('Marge appliquée');render()};
+const delS=async id=>{if(!confirm('Supprimer ce service définitivement ?'))return;const{error}=await sb.from('services').delete().eq('id',id);if(error)toast(error.message);await loadAll();render()};
+const edP=(id,f,v)=>upd('pay_methods',id,{[f]:v.trim()});
+const delP=async id=>{await sb.from('pay_methods').delete().eq('id',id);await loadAll();render()};
+const addP=async()=>{const n=prompt('Nom du moyen de paiement ?');if(n){await sb.from('pay_methods').insert({name:n});await loadAll();render()}};
+const saveConf=async()=>{await sb.from('settings').update({name:$('#c1').value.trim()||'JobBoost',color:$('#c2').value,wa:$('#c3').value.replace(/\D/g,'')}).eq('id',1);await loadAll();render();toast('Enregistré')};
+const none='<div class="empty">Rien pour le moment</div>';
+const A={
+orders:async()=>{const{data}=await sb.from('orders').select('*,profiles(name,phone,num)').order('id',{ascending:false}).limit(100);
+ return(data||[]).map(o=>`<div class="card"><div class="row"><span style="display:flex;gap:10px;align-items:center">${ico(o.sname.split(' · ')[0],36)}<b>${esc(o.sname)}</b></span><span class="st s${o.st}">${ST[o.st]}</span></div><div class="mu">n°${o.id} · ${esc(o.profiles?.name)} · ID ${o.profiles?.num} · ${esc(o.profiles?.phone)}</div><div class="link">${esc(o.link)}</div><div class="row"><span>Qté ${o.qty} · Restant ${rest(o)}</span><b>${fc(o.price)}</b></div><div class="mu">Coût ${fc(o.cost)} · Bénéfice ${fc(o.price-o.cost)}</div>${o.st==4?'':`<div class="mini">${(O[o.id]=`ID ${o.profiles?.num} | ${o.link} | Qté ${o.qty}`,'')}<button class="btn s g" onclick="cp(O[${o.id}])">Copier ID + lien + qté</button><button class="btn s" style="background:#f59e0b" onclick="setRest(${o.id},${rest(o)})">Restant</button><button class="btn s" onclick="setSt(${o.id},2)">▶ Accepter</button><button class="btn s" onclick="setSt(${o.id},3)">✔ Terminé</button><button class="btn s r" onclick="setSt(${o.id},4)">✖ Refuser</button></div>`}</div>`).join('')||none},
+deps:async()=>{const{data}=await sb.from('deposits').select('*,profiles(name,phone)').order('id',{ascending:false}).limit(100);
+ return(data||[]).map(d=>`<div class="card"><div class="row"><b>${fc(d.amount)}</b><span class="st s${DC[d.st]}">${DS[d.st]}</span></div><div class="mu">${esc(d.profiles?.name)} · ${esc(d.profiles?.phone)}<br>${esc(d.method)} · réf ${esc(d.ref||'-')}</div>${d.st?'':`<div class="mini"><button class="btn s" onclick="depSt(${d.id},1)">Valider + ajouter</button><button class="btn s r" onclick="depSt(${d.id},2)">Refuser</button></div>`}</div>`).join('')||none},
+users:async()=>{const{data}=await sb.from('profiles').select('*').order('at',{ascending:false});
+ return(data||[]).map(u=>`<div class="card row"><div><b>${esc(u.name)}</b> ${u.role=='admin'?'🛡️':''}<div class="mu">ID ${u.num} · ${esc(u.phone)}</div></div><div style="text-align:right"><b>${fc(u.bal)}</b><br><button class="btn s g" onclick="adj('${u.id}')">± Solde</button></div></div>`).join('')||none},
+svcs:async()=>{const cs=Object.fromEntries(((await sb.from('service_costs').select('*')).data||[]).map(x=>[x.sid,x.cost]));
+ return`<datalist id="nets">${Object.keys(BR).map(n=>`<option value="${n}">`).join('')}</datalist>
+<div class="card"><label style="margin-top:0">Marge appliquée à tous les services (%)</label><div class="mini"><input id="mg" type="number" value="20" style="flex:1;margin:0"><button class="btn s" onclick="applyM()">Appliquer</button></div><div class="mu">Recalcule le prix client = coût × (1 + marge). Les services sans coût ne changent pas.</div></div>
+<details class="card"><summary style="font-weight:700;cursor:pointer">➕ Ajouter un service</summary>${svcForm(null,0)}<button class="btn" onclick="svcSave('n')">Ajouter</button></details>
+<h2>${S.length} service(s)</h2>`+S.map(s=>`<details class="card"><summary style="display:flex;gap:10px;align-items:center;cursor:pointer;list-style:none">${ico(s.plat,38)}<span style="flex:1"><b>${esc(s.plat)} · ${esc(s.name)}</b><div class="mu">${fc(s.price)} /1000 · ${s.active?'Actif':'Masqué'}</div></span>✏️</summary>${svcForm(s,cs[s.id])}<button class="btn" onclick="svcSave(${s.id})">Enregistrer</button><div class="mini"><button class="btn s g" onclick="togS(${s.id})">${s.active?'Masquer':'Afficher'}</button><button class="btn s r" onclick="delS(${s.id})">Supprimer</button></div></details>`).join('')},
+conf:async()=>`<div class="card"><label>Nom du site</label><input id="c1" value="${esc(cfg.name)}"><label>Couleur</label><input id="c2" type="color" value="${cfg.color||'#10b981'}" style="height:48px"><label>WhatsApp public (indicatif, sans +)</label><input id="c3" value="${esc(cfg.wa)}"><button class="btn" onclick="saveConf()">Enregistrer</button></div><div class="card"><b>Sauvegarde (CSV)</b><div class="mini"><button class="btn s" onclick="exp('orders')">Commandes</button><button class="btn s" onclick="exp('profiles')">Clients</button><button class="btn s" onclick="exp('deposits')">Recharges</button></div></div><h2>Moyens de paiement</h2>`
+ +P.map(p=>`<div class="card"><label>Nom</label><input value="${esc(p.name)}" onchange="edP(${p.id},'name',this.value)"><label>Numéro</label><input value="${esc(p.num)}" onchange="edP(${p.id},'num',this.value)"><button class="btn s r" style="margin-top:8px" onclick="delP(${p.id})">Supprimer</button></div>`).join('')+'<button class="btn" onclick="addP()">＋ Moyen de paiement</button>'};
+const adminV=async()=>await stats()+'<div class="tabs">'+[['orders','📦 Commandes'],['deps','💰 Recharges'],['users','👥 Clients'],['svcs','💲 Tarifs'],['conf','⚙️ Réglages']].map(t=>`<button class="${atab==t[0]?'on':''}" onclick="atab='${t[0]}';render()">${t[1]}</button>`).join('')+'</div>'+await A[atab]();
+
+async function render(){
+ let h;
+ if(!me)h=authV();
+ else if(me.role=='admin')h=`<header>🛡️ Admin<button class="btn s g" onclick="logout()">Quitter</button></header><main>${await adminV()}</main>`;
+ else{const v={home:homeV,orders:ordersV,fund:fundV,acc:accV}[tab]||homeV;h=hdr()+'<main>'+await v()+'</main>'+nav()}
+ $('#app').innerHTML=h;
+}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+boot();
+</script></body></html>
