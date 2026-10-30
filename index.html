@@ -29,7 +29,7 @@ h2{margin:6px 0 12px;font-size:20px}
 <script>
 // 1) Collez ici l'URL et la clé "anon public" de votre projet Supabase (Project Settings > API).
 // La clé anon est faite pour être publique : la sécurité vient des règles RLS de schema.sql.
-const SB_URL='https://jobboost.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImljZ2VrZGN3b3VoZ2F4ZWdxZ3BrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNTE1NzIsImV4cCI6MjEwODkyNzU3Mn0.DFgJOjHTkanu41O5R5Fw7dO7D0dkPOWZL3GSWLykeDc';
+const SB_URL='https://VOTRE-PROJET.supabase.co',SB_KEY='VOTRE_CLE_ANON';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const $=s=>document.querySelector(s);
 const fc=n=>Math.round(n).toLocaleString('fr-FR')+' FC';
@@ -73,7 +73,7 @@ const cp=async t=>{try{await navigator.clipboard.writeText(t);toast('Copié')}ca
 const setRest=(id,cur)=>{const v=prompt('Quantité restante ?',cur);if(v!==null)rpc('set_rest',{p_id:id,p_rest:Math.max(0,parseInt(v)||0)},'Restant mis à jour')};
 const exp=async t=>{const{data}=await sb.from(t).select('*');if(!data?.length)return toast('Rien à exporter');const k=Object.keys(data[0]);const csv=[k.join(','),...data.map(r=>k.map(c=>JSON.stringify(r[c]??'')).join(','))].join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`jobboost-${t}-${new Date().toISOString().slice(0,10)}.csv`;a.click()};
 const stats=async()=>{const{data:o}=await sb.from('orders').select('price,cost,st');const{count:pd}=await sb.from('deposits').select('*',{count:'exact',head:true}).eq('st',0);let rv=0,pr=0,pe=0;(o||[]).forEach(x=>{if(x.st!=4){rv+=x.price;pr+=x.price-x.cost}if(!x.st)pe++});const c=(v,l,col)=>`<div class="card" style="margin:0"><b style="font-size:18px;color:${col||'inherit'}">${v}</b><div class="mu">${l}</div></div>`;return`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">${c(fc(rv),'Ventes')}${c(fc(pr),'Bénéfice','var(--c)')}${c(pe,'Commandes en attente')}${c(pd||0,'Recharges en attente')}</div>`};
-/* ===== CLIENT =====
+/* ===== CLIENT ===== */
 const hdr=()=>`<header>⚡ ${esc(cfg.name)}<span onclick="tab='fund';render()" style="background:var(--c);color:#fff;padding:8px 12px;border-radius:20px;font-size:14px">💼 ${fc(me.bal)}</span></header>`;
 const nav=()=>'<div class="nav">'+[['home','🏠','Accueil'],['orders','📦','Commandes'],['fund','💰','Recharger'],['acc','👤','Compte']].map(t=>`<button class="${tab==t[0]?'on':''}" onclick="tab='${t[0]}';render()"><span>${t[1]}</span>${t[2]}</button>`).join('')+'</div>';
 const list=()=>S.filter(s=>s.active&&(plat=='all'||s.plat==plat)&&(s.plat+' '+s.name).toLowerCase().includes(q.toLowerCase())).map(s=>`<div class="card"><div style="display:flex;gap:12px;align-items:center">${ico(s.plat,52)}<div><b>${esc(s.em)} ${esc(s.plat)} · ${esc(s.name)}</b><div class="mu">Min ${s.qmin} · Max ${s.qmax.toLocaleString('fr-FR')}</div></div></div><div class="row" style="margin-top:8px"><span class="mu">Pour 1 000</span><b>${fc(s.price)}</b></div><button class="btn" onclick="order(${s.id})">Acheter →</button></div>`).join('')||'<div class="empty">Aucun service</div>';
