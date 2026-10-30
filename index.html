@@ -44,7 +44,7 @@ body:before{content:"";position:fixed;inset:0;z-index:-1;background-image:linear
 <script>
 // 1) Collez ici l'URL et la clé "anon public" de votre projet Supabase (Project Settings > API).
 // La clé anon est faite pour être publique : la sécurité vient des règles RLS de schema.sql.
-const SB_URL='https://VOTRE-PROJET.supabase.co',SB_KEY='VOTRE_CLE_ANON';
+ const SB_URL='https://icgekdcwouhgaxegqgpk.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImljZ2VrZGN3b3VoZ2F4ZWdxZ3BrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNTE1NzIsImV4cCI6MjEwODkyNzU3Mn0.DFgJOjHTkanu41O5R5Fw7dO7D0dkPOWZL3GSWLykeDc';
 const sb=supabase.createClient(SB_URL,SB_KEY);
 const $=s=>document.querySelector(s);
 const fc=n=>{if(cur=='USD'&&me?.role!='admin'){const u=n/(cfg.usd_rate||2800);return '$'+u.toFixed(u<1?3:2)}return Math.round(n).toLocaleString('fr-FR')+' FC'};
